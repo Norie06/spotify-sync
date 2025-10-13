@@ -31,10 +31,12 @@ export async function runSync() {
   });
 
   const historyData = await historyResponse.json();
+  console.log('Spotify response:', historyData);
 
   // Step 3: Format as Markdown
   const today = dayjs().format('YYYY-MM-DD');
   let markdown = `## 🎧 Spotify Listening History – ${today}\n\n`;
+
 
   for (const item of historyData.items) {
     const time = dayjs(item.played_at).format('HH:mm');
