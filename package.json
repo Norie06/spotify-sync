@@ -1,0 +1,13 @@
+{
+  "name": "spotify-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "exchange.js",
+  "scripts": {
+    "start": "node exchange.js"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.18",
+    "node-fetch": "^2.7.0"
+  }
+}
