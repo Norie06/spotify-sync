@@ -1,9 +1,13 @@
-"scripts": {
-  "start": "node server.js"
-},
-"type": "module",
-"dependencies": {
-  "express": "^4.18.2",
-  "node-fetch": "^3.3.2",
-  "dayjs": "^1.11.9"
+{
+  "name": "spotify-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "dayjs": "^1.11.9"
+  }
 }
