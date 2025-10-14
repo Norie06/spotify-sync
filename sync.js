@@ -31,7 +31,7 @@ export async function runSync() {
   });
 
   const historyData = await historyResponse.json();
-  console.log('Spotify response:', historyData);
+  console.log('Spotify response:', JSON.stringify(historyData, null, 2));
 
   // Step 3: Format as Markdown
   const today = dayjs().format('YYYY-MM-DD');
