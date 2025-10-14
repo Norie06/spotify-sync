@@ -61,7 +61,7 @@ export async function runSync() {
 
     return (
       localDate === today &&
-      (!lastSynced || localPlayedAt.isAfter(dayjs(lastSynced)))
+      (!lastSynced || localPlayedAt.isAfter(dayjs.tz(lastSynced, 'Europe/Budapest')))
     );
   });
 
@@ -108,7 +108,7 @@ export async function runSync() {
     .sort()
     .slice(-1)[0];
 
-  const updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.toISOString()}\n---\n\n`;
+  const updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.format()}\n---\n\n`;
 
   // Step 6: Merge and save locally
   const headerlessContent = existingContent.replace(/^---[\s\S]*?---\n*/, '');
