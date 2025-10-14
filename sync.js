@@ -1,11 +1,15 @@
 import fetch from 'node-fetch';
 import fs from 'fs';
 import dayjs from 'dayjs';
+import { Octokit } from '@octokit/rest';
 
 export async function runSync() {
   const clientId = process.env.CLIENT_ID;
   const clientSecret = process.env.CLIENT_SECRET;
   const refreshToken = process.env.REFRESH_TOKEN;
+  const ghToken = process.env.GH_TOKEN;
+  const ghRepo = process.env.GH_REPO;
+  const ghBranch = process.env.GH_BRANCH || 'main';
 
   const today = dayjs().format('YYYY-MM-DD');
   const filePath = `spotify-history/${today}.md`;
@@ -89,11 +93,43 @@ export async function runSync() {
   const newestPlayed = newTracks[0].played_at;
   const updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${dayjs(newestPlayed).toISOString()}\n---\n\n`;
 
-  // Step 6: Merge and save
+  // Step 6: Merge and save locally
   const headerlessContent = existingContent.replace(/^---[\s\S]*?---\n*/, '');
   const finalContent = updatedFrontmatter + `## 🎧 Spotify Listening History – ${today}\n\n` + headerlessContent + newEntries;
 
   if (!fs.existsSync('spotify-history')) fs.mkdirSync('spotify-history');
   fs.writeFileSync(filePath, finalContent);
-  console.log('✅ Markdown file updated!');
+  console.log('✅ Markdown file updated locally!');
+
+  // Step 7: Push to GitHub
+  const octokit = new Octokit({ auth: ghToken });
+  const [owner, repo] = ghRepo.split('/');
+  let sha = null;
+
+  try {
+    const { data } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: filePath,
+      ref: ghBranch,
+    });
+    sha = data.sha;
+  } catch (err) {
+    console.log('📁 GitHub file does not exist yet — will create new one.');
+  }
+
+  const encoded = Buffer.from(finalContent).toString('base64');
+  const commitMessage = `Update listening history for ${today}`;
+
+  await octokit.repos.createOrUpdateFileContents({
+    owner,
+    repo,
+    path: filePath,
+    message: commitMessage,
+    content: encoded,
+    branch: ghBranch,
+    sha: sha || undefined,
+  });
+
+  console.log('🚀 File successfully pushed to GitHub!');
 }
