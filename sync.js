@@ -16,6 +16,7 @@ export async function runSync() {
   const ghRepo = process.env.GH_REPO;
   const ghBranch = process.env.GH_BRANCH || 'main';
 
+  const today = dayjs().tz('Europe/Budapest').format('YYYY-MM-DD');
   
   const filePath = `spotify-history/${today}.md`;
 
@@ -53,7 +54,6 @@ export async function runSync() {
   });
 
   const historyData = await historyResponse.json();
-  const today = dayjs().tz('Europe/Budapest').format('YYYY-MM-DD');
 
   const newTracks = historyData.items.filter(item => {
     const localPlayedAt = dayjs(item.played_at).tz('Europe/Budapest').format('YYYY-MM-DD');
