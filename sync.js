@@ -58,15 +58,16 @@ export async function runSync() {
   const newTracks = historyData.items.filter(item => {
     const localPlayedAt = dayjs(item.played_at).tz('Europe/Budapest');
     const localDate = localPlayedAt.format('YYYY-MM-DD');
-    const last = lastSynced ? dayjs.tz(lastSynced, 'Europe/Budapest') : null;
 
-    console.log(`🎧 ${item.track.name} | UTC: ${item.played_at} | Local: ${localPlayedAt.format()} | Date: ${localDate} | After lastSynced: ${!last || localPlayedAt.isAfter(last)}`);
+    if (localDate !== today) return false;
 
-    return (
-      localDate === today &&
-      (!lastSynced || localPlayedAt.isAfter(dayjs.tz(lastSynced, 'Europe/Budapest')))
-    );
+    if (!lastSynced) return true;
+
+    const last = dayjs.tz(lastSynced, 'Europe/Budapest');
+    console.log(`🎧 ${item.track.name} | UTC: ${item.played_at} | Local: ${localPlayedAt.format()} | Date: ${localDate} | Included: ${localDate === today && (!lastSynced || localPlayedAt.isAfter(last))}`);
+    return localPlayedAt.isAfter(last);
   });
+
 
   if (newTracks.length === 0) {
     console.log('✅ No new tracks to sync.');
