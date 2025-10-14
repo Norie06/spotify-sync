@@ -58,6 +58,9 @@ export async function runSync() {
   const newTracks = historyData.items.filter(item => {
     const localPlayedAt = dayjs(item.played_at).tz('Europe/Budapest');
     const localDate = localPlayedAt.format('YYYY-MM-DD');
+    const last = lastSynced ? dayjs.tz(lastSynced, 'Europe/Budapest') : null;
+
+    console.log(`🎧 ${item.track.name} | UTC: ${item.played_at} | Local: ${localPlayedAt.format()} | Date: ${localDate} | After lastSynced: ${!last || localPlayedAt.isAfter(last)}`);
 
     return (
       localDate === today &&
