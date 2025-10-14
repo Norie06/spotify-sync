@@ -2,8 +2,8 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import dayjs from 'dayjs';
 import { Octokit } from '@octokit/rest';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
