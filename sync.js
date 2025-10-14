@@ -93,11 +93,11 @@ export async function runSync() {
     const count = plays.length;
 
     if (count === 1) {
-      const time = dayjs(sorted[0]).format('HH:mm');
+      const time = dayjs(sorted[0]).tz('Europe/Budapest').format('HH:mm');
       newEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played 1 time at ${time}\n`;
     } else {
-      const start = dayjs(sorted[0]).format('HH:mm');
-      const end = dayjs(sorted[sorted.length - 1]).format('HH:mm');
+      const start = dayjs(sorted[0]).tz('Europe/Budapest').format('HH:mm');
+      const end = dayjs(sorted[sorted.length - 1]).tz('Europe/Budapest').format('HH:mm');
       newEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played ${count} times between ${start} and ${end}\n`;
     }
   }
