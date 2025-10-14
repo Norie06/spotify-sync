@@ -2,6 +2,11 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import dayjs from 'dayjs';
 import { Octokit } from '@octokit/rest';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 export async function runSync() {
   const clientId = process.env.CLIENT_ID;
@@ -11,7 +16,7 @@ export async function runSync() {
   const ghRepo = process.env.GH_REPO;
   const ghBranch = process.env.GH_BRANCH || 'main';
 
-  const today = dayjs().format('YYYY-MM-DD');
+  
   const filePath = `spotify-history/${today}.md`;
 
   // Load existing file and extract lastSynced
@@ -48,8 +53,10 @@ export async function runSync() {
   });
 
   const historyData = await historyResponse.json();
+  const today = dayjs().tz('Europe/Budapest').format('YYYY-MM-DD');
+
   const newTracks = historyData.items.filter(item => {
-  const localPlayedAt = dayjs(item.played_at).local().format('YYYY-MM-DD');
+    const localPlayedAt = dayjs(item.played_at).tz('Europe/Budapest').format('YYYY-MM-DD');
     return localPlayedAt === today && (!lastSynced || item.played_at > lastSynced);
   });
 
