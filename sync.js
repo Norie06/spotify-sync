@@ -168,21 +168,52 @@ export async function runSync() {
     });
     sha = data.sha;
   } catch (err) {
-    console.log('📁 GitHub file does not exist yet — will create new one.');
+    if (err.status === 404) {
+      console.log('📁 GitHub file does not exist yet — will create new one.');
+    } else {
+      console.error(`❌ Failed to fetch file metadata: ${err.message}`);
+      return;
+    }
   }
 
   const encoded = Buffer.from(finalContent).toString('base64');
   const commitMessage = `Update listening history for ${today}`;
 
-  await octokit.repos.createOrUpdateFileContents({
-    owner,
-    repo,
-    path: filePath,
-    message: commitMessage,
-    content: encoded,
-    branch: ghBranch,
-    sha: sha || undefined,
-  });
-
-  console.log('🚀 File successfully pushed to GitHub!');
-}
+  try {
+    await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: filePath,
+      message: commitMessage,
+      content: encoded,
+      branch: ghBranch,
+      sha: sha || undefined,
+    });
+    console.log(`🚀 File successfully pushed to GitHub: ${filePath}`);
+  } catch (err) {
+    if (err.status === 409) {
+      console.warn(`⚠️ SHA conflict detected. Retrying with latest SHA...`);
+      try {
+        const { data } = await octokit.repos.getContent({
+          owner,
+          repo,
+          path: filePath,
+          ref: ghBranch,
+        });
+        await octokit.repos.createOrUpdateFileContents({
+          owner,
+          repo,
+          path: filePath,
+          message: commitMessage,
+          content: encoded,
+          branch: ghBranch,
+          sha: data.sha,
+        });
+        console.log(`✅ Retry successful: ${filePath}`);
+      } catch (retryErr) {
+        console.error(`❌ Retry failed: ${retryErr.message}`);
+      }
+    } else {
+      console.error(`❌ GitHub push failed: ${err.message}`);
+    }
+  }
