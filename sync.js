@@ -116,11 +116,43 @@ export async function runSync() {
 
   // Step 6: Merge and save locally
   const headerlessContent = existingContent.replace(/^---[\s\S]*?---\n*/, '');
-  const finalContent = updatedFrontmatter + `## 🎧 Spotify Listening History – ${today}\n\n` + headerlessContent + newEntries;
 
-  if (!fs.existsSync('spotify-history')) fs.mkdirSync('spotify-history');
-  fs.writeFileSync(filePath, finalContent);
-  console.log('✅ Markdown file updated locally!');
+  // Extract existing track signatures
+  const existingSignatures = new Set();
+  const entryRegex = /- \*“(.*?)”\* by (.*?)\s+⏱️ Played (\d+) time(?:s)?(?: between (\d{2}:\d{2}) and (\d{2}:\d{2})| at (\d{2}:\d{2}))/g;
+  let match;
+  while ((match = entryRegex.exec(headerlessContent)) !== null) {
+    const [_, name, artists, count, start, end, time] = match;
+    const signature = `${name}__${artists}__${count}__${start || time}__${end || ''}`;
+    existingSignatures.add(signature);
+  }
+
+  // Filter out duplicates
+  let deduplicatedEntries = '';
+  for (const key in grouped) {
+    const { name, artists, plays } = grouped[key];
+    const sorted = plays.sort();
+    const count = plays.length;
+
+    const start = dayjs(sorted[0]).tz('Europe/Budapest').format('HH:mm');
+    const end = count > 1 ? dayjs(sorted[sorted.length - 1]).tz('Europe/Budapest').format('HH:mm') : '';
+    const signature = `${name}__${artists}__${count}__${start}__${end}`;
+
+    if (existingSignatures.has(signature)) continue;
+
+    if (count === 1) {
+      deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played 1 time at ${start}\n`;
+    } else {
+      deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played ${count} times between ${start} and ${end}\n`;
+    }
+  }
+
+  // Only add header if not present
+  const header = `## 🎧 Spotify Listening History – ${today}\n\n`;
+  const hasHeader = headerlessContent.includes(header.trim());
+  const finalContent = updatedFrontmatter + (hasHeader ? '' : header) + headerlessContent + deduplicatedEntries;
+
+
 
   // Step 7: Push to GitHub
   const octokit = new Octokit({ auth: ghToken });
