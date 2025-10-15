@@ -216,4 +216,4 @@ export async function runSync() {
     } else {
       console.error(`❌ GitHub push failed: ${err.message}`);
     }
-  }
+  }} 
