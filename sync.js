@@ -135,6 +135,9 @@ export async function runSync() {
     deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played at ${localTime}\n`;
   }
 
+  const header = `## 🎧 Spotify Listening History – ${today}\n\n`;
+  const hasHeader = headerlessContent.includes(header.trim());
+  const finalContent = updatedFrontmatter + (hasHeader ? '' : header) + headerlessContent + deduplicatedEntries;
 
   // Step 7: Push to GitHub
   const octokit = new Octokit({ auth: ghToken });
