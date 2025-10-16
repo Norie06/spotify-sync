@@ -107,7 +107,14 @@ export async function runSync() {
     .sort()
     .slice(-1)[0];
 
-  const updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.format()}\n---\n\n`;
+  let frontmatter = existingContent.match(/^---[\s\S]*?---/);
+  let updatedFrontmatter;
+
+  if (frontmatter) {
+    updatedFrontmatter = frontmatter[0].replace(/lastSynced:\s*.+/, `lastSynced: ${newestPlayed.format()}`);
+  } else {
+    updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.format()}\n---`;
+  }
 
   // Step 6: Merge and save locally
   // Extract existing play signatures
@@ -137,7 +144,7 @@ export async function runSync() {
 
   const header = `## 🎧 Spotify Listening History – ${today}\n\n`;
   const hasHeader = headerlessContent.includes(header.trim());
-  const finalContent = updatedFrontmatter + (hasHeader ? '' : header) + headerlessContent + deduplicatedEntries;
+  const finalContent = updatedFrontmatter + '\n\n' + (hasHeader ? '' : header) + headerlessContent + deduplicatedEntries;
 
   // Step 7: Push to GitHub
   const octokit = new Octokit({ auth: ghToken });
