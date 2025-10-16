@@ -116,19 +116,17 @@ export async function runSync() {
     updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.format()}\n---`;
   }
 
-  // Step 6: Merge and save locally
-  // Extract existing play signatures
-  const headerlessContent = existingContent.replace(/^---[\s\S]*?---\n*/, '');
+  // Step 6: Merge and save locally (no header)
+  const existingBody = existingContent.replace(/^---[\s\S]*?---\n*/, '');
   const existingSignatures = new Set();
   const entryRegex = /- \*“(.*?)”\* by (.*?)\s+⏱️ Played at (\d{2}:\d{2})/g;
   let match;
-  while ((match = entryRegex.exec(headerlessContent)) !== null) {
+  while ((match = entryRegex.exec(existingBody)) !== null) {
     const [_, name, artists, time] = match;
     const signature = `${name}__${artists}__${time}`;
     existingSignatures.add(signature);
   }
 
-  // Filter out duplicates
   let deduplicatedEntries = '';
   for (const item of newTracks) {
     const track = item.track;
@@ -142,9 +140,7 @@ export async function runSync() {
     deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played at ${localTime}\n`;
   }
 
-  const header = `## 🎧 Spotify Listening History – ${today}\n\n`;
-  const hasHeader = headerlessContent.includes(header.trim());
-  const finalContent = updatedFrontmatter + '\n\n' + (hasHeader ? '' : header) + headerlessContent + deduplicatedEntries;
+  const finalContent = updatedFrontmatter + '\n\n' + existingBody + deduplicatedEntries;
 
   // Step 7: Push to GitHub
   const octokit = new Octokit({ auth: ghToken });
