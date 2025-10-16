@@ -17,7 +17,6 @@ export async function runSync() {
   const ghBranch = process.env.GH_BRANCH || 'main';
 
   const today = dayjs().tz('Europe/Budapest').format('YYYY-MM-DD');
-  
   const filePath = `spotify-history/${today}.md`;
 
   // Load existing file and extract lastSynced
@@ -60,73 +59,31 @@ export async function runSync() {
     const localDate = localPlayedAt.format('YYYY-MM-DD');
 
     if (localDate !== today) return false;
-
     if (!lastSynced) return true;
 
     const last = dayjs.tz(lastSynced, 'Europe/Budapest');
-    console.log(`🎧 ${item.track.name} | UTC: ${item.played_at} | Local: ${localPlayedAt.format()} | Date: ${localDate} | Included: ${localDate === today && (!lastSynced || localPlayedAt.isAfter(last))}`);
     return localPlayedAt.isAfter(last);
   });
-
 
   if (newTracks.length === 0) {
     console.log('✅ No new tracks to sync.');
     return;
   }
 
-  // Step 3: Group repeated plays
-  const grouped = {};
-  for (const item of newTracks) {
-    const track = item.track;
-    const key = `${track.name}__${track.artists.map(a => a.name).join(', ')}`;
-    if (!grouped[key]) {
-      grouped[key] = {
-        name: track.name,
-        artists: track.artists.map(a => a.name).join(', '),
-        plays: [],
-      };
-    }
-    grouped[key].plays.push(item.played_at);
-  }
+  // Step 3: Extract existing play signatures
+  const frontmatterMatch = existingContent.match(/^---[\s\S]*?---/);
+  const body = existingContent.replace(/^---[\s\S]*?---\n*/, '');
 
-  // Step 4: Format new Markdown entries
-  let newEntries = '';
-
-  for (const item of newTracks) {
-    const track = item.track;
-    const name = track.name;
-    const artists = track.artists.map(a => a.name).join(', ');
-    const localTime = dayjs(item.played_at).tz('Europe/Budapest').format('HH:mm');
-
-    newEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played at ${localTime}\n`;
-  }
-
-  // Step 5: Update lastSynced
-  const newestPlayed = newTracks
-    .map(item => dayjs(item.played_at).tz('Europe/Budapest'))
-    .sort()
-    .slice(-1)[0];
-
-  let frontmatter = existingContent.match(/^---[\s\S]*?---/);
-  let updatedFrontmatter;
-
-  if (frontmatter) {
-    updatedFrontmatter = frontmatter[0].replace(/lastSynced:\s*.+/, `lastSynced: ${newestPlayed.format()}`);
-  } else {
-    updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.format()}\n---`;
-  }
-
-  // Step 6: Merge and save locally (no header)
-  const existingBody = existingContent.replace(/^---[\s\S]*?---\n*/, '');
   const existingSignatures = new Set();
   const entryRegex = /- \*“(.*?)”\* by (.*?)\s+⏱️ Played at (\d{2}:\d{2})/g;
   let match;
-  while ((match = entryRegex.exec(existingBody)) !== null) {
+  while ((match = entryRegex.exec(body)) !== null) {
     const [_, name, artists, time] = match;
     const signature = `${name}__${artists}__${time}`;
     existingSignatures.add(signature);
   }
 
+  // Step 4: Format new Markdown entries
   let deduplicatedEntries = '';
   for (const item of newTracks) {
     const track = item.track;
@@ -140,9 +97,19 @@ export async function runSync() {
     deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played at ${localTime}\n`;
   }
 
-  const finalContent = updatedFrontmatter + '\n\n' + existingBody + deduplicatedEntries;
+  // Step 5: Update lastSynced
+  const newestPlayed = newTracks
+    .map(item => dayjs(item.played_at).tz('Europe/Budapest'))
+    .sort()
+    .slice(-1)[0];
 
-  // Step 7: Push to GitHub
+  const updatedFrontmatter = frontmatterMatch
+    ? frontmatterMatch[0].replace(/lastSynced:\s*.+/, `lastSynced: ${newestPlayed.format()}`)
+    : `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.format()}\n---`;
+
+  const finalContent = updatedFrontmatter + '\n\n' + body + deduplicatedEntries;
+
+  // Step 6: Push to GitHub
   const octokit = new Octokit({ auth: ghToken });
   const [owner, repo] = ghRepo.split('/');
   let sha = null;
@@ -204,4 +171,5 @@ export async function runSync() {
     } else {
       console.error(`❌ GitHub push failed: ${err.message}`);
     }
-  }} 
+  }
+}
