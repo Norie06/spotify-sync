@@ -91,19 +91,14 @@ export async function runSync() {
 
   // Step 4: Format new Markdown entries
   let newEntries = '';
-  for (const key in grouped) {
-    const { name, artists, plays } = grouped[key];
-    const sorted = plays.sort();
-    const count = plays.length;
 
-    if (count === 1) {
-      const time = dayjs(sorted[0]).tz('Europe/Budapest').format('HH:mm');
-      newEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played 1 time at ${time}\n`;
-    } else {
-      const start = dayjs(sorted[0]).tz('Europe/Budapest').format('HH:mm');
-      const end = dayjs(sorted[sorted.length - 1]).tz('Europe/Budapest').format('HH:mm');
-      newEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played ${count} times between ${start} and ${end}\n`;
-    }
+  for (const item of newTracks) {
+    const track = item.track;
+    const name = track.name;
+    const artists = track.artists.map(a => a.name).join(', ');
+    const localTime = dayjs(item.played_at).tz('Europe/Budapest').format('HH:mm');
+
+    newEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played at ${localTime}\n`;
   }
 
   // Step 5: Update lastSynced
@@ -115,43 +110,29 @@ export async function runSync() {
   const updatedFrontmatter = `---\ndate: ${today}\nsource: spotify\ntype: listening-history\nlastSynced: ${newestPlayed.format()}\n---\n\n`;
 
   // Step 6: Merge and save locally
-  const headerlessContent = existingContent.replace(/^---[\s\S]*?---\n*/, '');
-
-  // Extract existing track signatures
+  // Extract existing play signatures
   const existingSignatures = new Set();
-  const entryRegex = /- \*“(.*?)”\* by (.*?)\s+⏱️ Played (\d+) time(?:s)?(?: between (\d{2}:\d{2}) and (\d{2}:\d{2})| at (\d{2}:\d{2}))/g;
+  const entryRegex = /- \*“(.*?)”\* by (.*?)\s+⏱️ Played at (\d{2}:\d{2})/g;
   let match;
   while ((match = entryRegex.exec(headerlessContent)) !== null) {
-    const [_, name, artists, count, start, end, time] = match;
-    const signature = `${name}__${artists}__${count}__${start || time}__${end || ''}`;
+    const [_, name, artists, time] = match;
+    const signature = `${name}__${artists}__${time}`;
     existingSignatures.add(signature);
   }
 
   // Filter out duplicates
   let deduplicatedEntries = '';
-  for (const key in grouped) {
-    const { name, artists, plays } = grouped[key];
-    const sorted = plays.sort();
-    const count = plays.length;
-
-    const start = dayjs(sorted[0]).tz('Europe/Budapest').format('HH:mm');
-    const end = count > 1 ? dayjs(sorted[sorted.length - 1]).tz('Europe/Budapest').format('HH:mm') : '';
-    const signature = `${name}__${artists}__${count}__${start}__${end}`;
+  for (const item of newTracks) {
+    const track = item.track;
+    const name = track.name;
+    const artists = track.artists.map(a => a.name).join(', ');
+    const localTime = dayjs(item.played_at).tz('Europe/Budapest').format('HH:mm');
+    const signature = `${name}__${artists}__${localTime}`;
 
     if (existingSignatures.has(signature)) continue;
 
-    if (count === 1) {
-      deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played 1 time at ${start}\n`;
-    } else {
-      deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played ${count} times between ${start} and ${end}\n`;
-    }
+    deduplicatedEntries += `- *“${name}”* by ${artists}  \n  ⏱️ Played at ${localTime}\n`;
   }
-
-  // Only add header if not present
-  const header = `## 🎧 Spotify Listening History – ${today}\n\n`;
-  const hasHeader = headerlessContent.includes(header.trim());
-  const finalContent = updatedFrontmatter + (hasHeader ? '' : header) + headerlessContent + deduplicatedEntries;
-
 
 
   // Step 7: Push to GitHub
