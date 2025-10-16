@@ -1,5 +1,4 @@
 import fetch from 'node-fetch';
-import fs from 'fs';
 import dayjs from 'dayjs';
 import { Octokit } from '@octokit/rest';
 import utc from 'dayjs/plugin/utc.js';
@@ -19,14 +18,35 @@ export async function runSync() {
   const today = dayjs().tz('Europe/Budapest').format('YYYY-MM-DD');
   const filePath = `spotify-history/${today}.md`;
 
-  // Load existing file and extract lastSynced
+  const octokit = new Octokit({ auth: ghToken });
+  const [owner, repo] = ghRepo.split('/');
   let existingContent = '';
   let lastSynced = null;
+  let sha = null;
 
-  if (fs.existsSync(filePath)) {
-    existingContent = fs.readFileSync(filePath, 'utf-8');
-    const match = existingContent.match(/lastSynced:\s*(.+)/);
-    if (match) lastSynced = match[1].trim();
+  // Step 0: Load existing file from GitHub
+  try {
+    const { data } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: filePath,
+      ref: ghBranch,
+    });
+
+    if (data.type === 'file') {
+      existingContent = Buffer.from(data.content, 'base64').toString('utf-8');
+      sha = data.sha;
+
+      const match = existingContent.match(/lastSynced:\s*(.+)/);
+      if (match) lastSynced = match[1].trim();
+    }
+  } catch (err) {
+    if (err.status === 404) {
+      console.log('📁 GitHub file does not exist yet — will create new one.');
+    } else {
+      console.error(`❌ Failed to fetch file from GitHub: ${err.message}`);
+      return;
+    }
   }
 
   // Step 1: Refresh access token
@@ -57,7 +77,6 @@ export async function runSync() {
   const newTracks = historyData.items.filter(item => {
     const localPlayedAt = dayjs(item.played_at).tz('Europe/Budapest');
     const localDate = localPlayedAt.format('YYYY-MM-DD');
-
     if (localDate !== today) return false;
     if (!lastSynced) return true;
 
@@ -110,27 +129,6 @@ export async function runSync() {
   const finalContent = updatedFrontmatter + '\n\n' + body + deduplicatedEntries;
 
   // Step 6: Push to GitHub
-  const octokit = new Octokit({ auth: ghToken });
-  const [owner, repo] = ghRepo.split('/');
-  let sha = null;
-
-  try {
-    const { data } = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: filePath,
-      ref: ghBranch,
-    });
-    sha = data.sha;
-  } catch (err) {
-    if (err.status === 404) {
-      console.log('📁 GitHub file does not exist yet — will create new one.');
-    } else {
-      console.error(`❌ Failed to fetch file metadata: ${err.message}`);
-      return;
-    }
-  }
-
   const encoded = Buffer.from(finalContent).toString('base64');
   const commitMessage = `Update listening history for ${today}`;
 
