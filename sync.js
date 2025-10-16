@@ -111,6 +111,7 @@ export async function runSync() {
 
   // Step 6: Merge and save locally
   // Extract existing play signatures
+  const headerlessContent = existingContent.replace(/^---[\s\S]*?---\n*/, '');
   const existingSignatures = new Set();
   const entryRegex = /- \*“(.*?)”\* by (.*?)\s+⏱️ Played at (\d{2}:\d{2})/g;
   let match;
